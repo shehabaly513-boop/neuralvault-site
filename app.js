@@ -1,27 +1,1036 @@
-const plans=[['AI Spark',10,7,.02],['Neural Rise',25,10,.02],['Quantum AI',50,14,.025],['AI Pro Max',75,21,.03],['Neural Elite',100,30,.03]];
-const D={ar:{lang:'English',login:'دخول',register:'إنشاء حساب',dash:'لوحة التحكم',plans:'خطط الاستثمار',deposit:'إيداع',invest:'استثمار',withdraw:'سحب',support:'الدعم',available:'الرصيد المتاح',locked:'رأس المال المقفول',accrued:'الأداء المستحق',affiliate:'رصيد العمولة',days:'يوم',fee:'رسوم المنصة',logout:'خروج',transactions:'سجل المعاملات',submit:'إرسال',close:'إغلاق'},en:{lang:'العربية',login:'Login',register:'Create account',dash:'Dashboard',plans:'Investment Plans',deposit:'Deposit',invest:'Invest',withdraw:'Withdraw',support:'Support',available:'Available Balance',locked:'Locked Principal',accrued:'Accrued Performance',affiliate:'Affiliate Balance',days:'days',fee:'Platform Fee',logout:'Logout',transactions:'Ledger',submit:'Submit',close:'Close'}};
-let lang=localStorage.lang||'ar', token=localStorage.token||'', me=null; const t=k=>D[lang][k]||k; const money=x=>'$'+Number(x||0).toFixed(2); const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-async function api(path,opt={}){opt.headers={...(opt.headers||{}), 'Content-Type':'application/json'}; if(token)opt.headers.Authorization='Bearer '+token; const r=await fetch('/api'+path,opt); const d=await r.json().catch(()=>({})); if(!r.ok)throw new Error(d.message||'Request failed'); return d}
-async function refresh(){if(!token)return null;try{me=await api('/finance/me');return me}catch(e){token='';localStorage.removeItem('token');return null}}
-function saveLang(){localStorage.lang=lang}
-function shell(body){document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';return `<div class=shell><nav class=nav><div class=brand>Neural<span>Vault</span> AI</div><div class=navlinks><button class=btn onclick=toggleLang()>${t('lang')}</button>${token?`<button class="btn primary" onclick=dashboard()>${t('dash')}</button><button class=btn onclick=logout()>${t('logout')}</button>`:`<button class=btn onclick=login()>${t('login')}</button><button class="btn primary" onclick=register()>${t('register')}</button>`}</div></nav>${body}<footer class=footer><div class=container>Terms · Risk Disclosure · Privacy · Fee Schedule · Crypto Payment Policy · Withdrawal Policy · Affiliate Terms · KYC/AML · Restricted Jurisdictions</div></footer></div>`}
-function home(){return shell(`<main><section class="hero container"><div class=eyebrow>AI FINTECH · TRANSPARENT LEDGER</div><h1>${lang==='ar'?'منصة مالية رقمية بواجهة احترافية ومحاسبة قابلة للتدقيق':'Professional digital finance with auditable accounting'}</h1><p>${lang==='ar'?'إدارة حسابك واستثماراتك وحالات السحب والإيداع من لوحة واحدة. لا توجد عوائد مضمونة، والأداء قد يكون موجبًا أو سالبًا.':'Manage your account, investments, deposits and withdrawals from one dashboard. No guaranteed returns; performance can be positive or negative.'}</p><div class=actions><button class="btn primary" onclick=register()>${t('register')}</button><button class=btn onclick="document.getElementById('plans').scrollIntoView()">${t('plans')}</button></div><div class="notice danger" style="max-width:850px;margin:25px auto">${lang==='ar'?'هذه منصة تجريبية تعليمية. لا ترسل أموالًا حقيقية قبل إتمام مزود الدفع والتحقق والامتثال والمراجعة الأمنية.':'Educational/demo environment. Do not send real funds until payment provider, compliance and security controls are production-ready.'}</div></section><section id=plans class="section container"><h2>${t('plans')}</h2><div class=grid>${plans.map(p=>`<article class=card><h3>${p[0]}</h3><div class=price>${money(p[1])}</div><p>${p[2]} ${t('days')}<br>${t('fee')}: ${(p[3]*100).toFixed(1)}%</p><button class="btn primary" style="width:100%" onclick="${token?`startInvest('${p[0]}')`:'register()'}">${t('invest')}</button></article>`).join('')}</div></section></main>`)}
-function dashShell(){return shell(`<div class=dashboard><aside class=side><button class="btn primary" onclick=dashboard()>${t('dash')}</button><button class=btn onclick=deposit()>${t('deposit')}</button><button class=btn onclick=investments()>${t('invest')}</button><button class=btn onclick=withdraw()>${t('withdraw')}</button><button class=btn onclick=support()>${t('support')}</button></aside><main class=main id=main></main></div>`)}
-function bal(type){return Number((me?.accounts||[]).find(a=>a.type===type)?.balance||0)}
-function dashboard(){if(!token){return login()}document.getElementById('app').innerHTML=dashShell();const e=document.getElementById('main');e.innerHTML=`<h1>${t('dash')}</h1><div class=stats><div class=card>${t('available')}<div class=value>${money(bal('AVAILABLE'))}</div></div><div class=card>${t('locked')}<div class=value>${money(bal('LOCKED'))}</div></div><div class=card>${t('accrued')}<div class=value>${money(bal('ACCRUED_RETURN'))}</div></div><div class=card>${t('affiliate')}<div class=value>${money(bal('AFFILIATE'))}</div></div></div><div class=notice>${lang==='ar'?'الحالة المالية مصدرها الـBackend وقيد مزدوج غير قابل للتعديل المباشر.':'Financial state is backend-authoritative with an auditable ledger.'}</div><h2>${t('transactions')}</h2><div class=card><table class=table><tr><th>Type</th><th>Amount</th><th>Direction</th><th>Date</th></tr>${(me.ledger||[]).map(x=>`<tr><td>${esc(x.type)}</td><td>${money(x.amount)}</td><td>${esc(x.direction)}</td><td>${new Date(x.createdAt).toLocaleString()}</td></tr>`).join('')}</table></div>`}
-function modal(x){const d=document.createElement('div');d.id='modal';d.className='modal';d.innerHTML=`<div class=modalbox>${x}<br><button class=btn onclick=closeM()>${t('close')}</button></div>`;document.body.appendChild(d)}function closeM(){document.getElementById('modal')?.remove()}
-function login(){modal(`<h2>${t('login')}</h2><input id=em class=input placeholder=Email><input id=pw class=input type=password placeholder=Password><button class="btn primary" onclick=doLogin()>${t('login')}</button>`)}
-function register(){modal(`<h2>${t('register')}</h2><input id=em class=input placeholder=Email><input id=pw class=input type=password placeholder="Password (8+)"><div class=notice>Terms, Risk Disclosure, Crypto Payment Policy, KYC/AML and jurisdiction restrictions apply.</div><button class="btn primary" onclick=doRegister()>${t('register')}</button>`)}
-async function doLogin(){try{const d=await api('/auth/login',{method:'POST',body:JSON.stringify({email:em.value,password:pw.value})});token=d.accessToken;localStorage.token=token;closeM();await refresh();render()}catch(e){alert(e.message)}}
-async function doRegister(){try{const d=await api('/auth/register',{method:'POST',body:JSON.stringify({email:em.value,password:pw.value})});token=d.accessToken;localStorage.token=token;closeM();await refresh();render()}catch(e){alert(e.message)}}
-function logout(){token='';localStorage.removeItem('token');me=null;render()} function toggleLang(){lang=lang==='ar'?'en':'ar';saveLang();render()}
-async function deposit(){modal(`<h2>${t('deposit')}</h2><input id=amount class=input type=number min=1 placeholder="Amount USD"><select id=currency class=input><option>USD</option><option>USDT</option><option>USDC</option></select><div class=notice danger>${lang==='ar'?'النسخة الحالية تستخدم تأكيدًا تجريبيًا. الإنتاج يحتاج webhook موثّق من مزود الدفع.':'Current build supports demo confirmation; production needs a verified provider webhook.'}</div><button class="btn primary" onclick=doDeposit()>${t('deposit')}</button>`)}
-async function doDeposit(){try{const d=await api('/finance/deposits',{method:'POST',body:JSON.stringify({amount:Number(amount.value),currency:currency.value,provider:'demo'})});await api('/finance/deposits/'+d.id+'/confirm',{method:'POST'});closeM();await refresh();dashboard()}catch(e){alert(e.message)}}
-async function startInvest(name){try{await api('/finance/investments',{method:'POST',body:JSON.stringify({name})});await refresh();dashboard()}catch(e){alert(e.message)}}
-function investments(){document.getElementById('main').innerHTML=`<h1>${t('invest')}</h1><div class=grid>${plans.map(p=>`<article class=card><h3>${p[0]}</h3><div class=price>${money(p[1])}</div><p>${p[2]} ${t('days')} · ${(p[3]*100).toFixed(1)}%</p><button class="btn primary" onclick="startInvest('${p[0]}')">${t('invest')}</button></article>`).join('')}</div><div class=notice>Settlement can only occur after the lock timestamp and is processed by the backend.</div>`}
-async function withdraw(){modal(`<h2>${t('withdraw')}</h2><input id=wa class=input type=number min=1 placeholder="Amount USD"><input id=addr class=input placeholder="Wallet address"><select id=network class=input><option>USDT-TRC20</option><option>USDT-ERC20</option></select><div class=notice danger>Only available balance can be requested. Production requires compliance review, reservation, broadcast and reconciliation.</div><button class="btn primary" onclick=doWithdraw()>${t('withdraw')}</button>`)}
-async function doWithdraw(){try{await api('/finance/withdrawals',{method:'POST',body:JSON.stringify({amount:Number(wa.value),address:addr.value,network:network.value})});closeM();await refresh();dashboard()}catch(e){alert(e.message)}}
-async function support(){document.getElementById('main').innerHTML=`<h1>${t('support')}</h1><div class=grid><div class=card><h3>AI Support</h3><p class=muted>Common questions can be handled here; payment failures, withdrawals and security issues can be escalated to human support.</p></div><div class=card><h3>Submit Ticket</h3><input id=subj class=input placeholder="Subject"><select id=cat class=input><option>Deposit Issue</option><option>Cryptocurrency Payment</option><option>Investment</option><option>Locked Balance</option><option>Withdrawal</option><option>KYC</option><option>Affiliate Program</option><option>Technical Issue</option></select><textarea id=msg class=input rows=5 placeholder="Describe your issue"></textarea><button class="btn primary" onclick=sendTicket()>${t('submit')}</button></div><div class=card><h3>My Tickets</h3>${(me.tickets||[]).map(x=>`<p><b>${esc(x.subject)}</b> — ${esc(x.status)}</p>`).join('')||'<p>No tickets.</p>'}</div></div>`}
-async function sendTicket(){try{await api('/finance/support',{method:'POST',body:JSON.stringify({subject:subj.value,category:cat.value,message:msg.value})});await refresh();support()}catch(e){alert(e.message)}}
-function render(){document.getElementById('app').innerHTML=token?dashShell():home();if(token){refresh().then(()=>dashboard())}}
+const API_URL='https://neuralvault-api-production.up.railway.app';
+
+const plans=[
+  ['AI Spark',10,7,.02],
+  ['Neural Rise',25,10,.02],
+  ['Quantum AI',50,14,.025],
+  ['AI Pro Max',75,21,.03],
+  ['Neural Elite',100,30,.03]
+];
+
+const D={
+  ar:{
+    lang:'English',
+    login:'دخول',
+    register:'إنشاء حساب',
+    dash:'لوحة التحكم',
+    plans:'خطط الاستثمار',
+    deposit:'إيداع',
+    invest:'استثمار',
+    withdraw:'سحب',
+    support:'الدعم',
+    available:'الرصيد المتاح',
+    locked:'رأس المال المقفول',
+    accrued:'الأداء المستحق',
+    affiliate:'رصيد العمولة',
+    days:'يوم',
+    fee:'رسوم المنصة',
+    logout:'خروج',
+    transactions:'سجل المعاملات',
+    submit:'إرسال',
+    close:'إغلاق'
+  },
+  en:{
+    lang:'العربية',
+    login:'Login',
+    register:'Create account',
+    dash:'Dashboard',
+    plans:'Investment Plans',
+    deposit:'Deposit',
+    invest:'Invest',
+    withdraw:'Withdraw',
+    support:'Support',
+    available:'Available Balance',
+    locked:'Locked Principal',
+    accrued:'Accrued Performance',
+    affiliate:'Affiliate Balance',
+    days:'days',
+    fee:'Platform Fee',
+    logout:'Logout',
+    transactions:'Ledger',
+    submit:'Submit',
+    close:'Close'
+  }
+};
+
+let lang=localStorage.lang||'ar';
+let token=localStorage.token||'';
+let me=null;
+
+const t=k=>D[lang][k]||k;
+
+const money=x=>'$'+Number(x||0).toFixed(2);
+
+const esc=x=>String(x??'').replace(
+  /[&<>"']/g,
+  m=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[m])
+);
+
+async function api(path,opt={}){
+  opt.headers={
+    ...(opt.headers||{}),
+    'Content-Type':'application/json'
+  };
+
+  if(token){
+    opt.headers.Authorization='Bearer '+token;
+  }
+
+  const r=await fetch(API_URL+path,opt);
+
+  const d=await r.json().catch(()=>({}));
+
+  if(!r.ok){
+    throw new Error(d.message||'Request failed');
+  }
+
+  return d;
+}
+
+async function refresh(){
+  if(!token) return null;
+
+  try{
+    me=await api('/finance/me');
+    return me;
+  }catch(e){
+    token='';
+    localStorage.removeItem('token');
+    me=null;
+    return null;
+  }
+}
+
+function saveLang(){
+  localStorage.lang=lang;
+}
+
+function shell(body){
+  document.documentElement.lang=lang;
+  document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+
+  return `
+    <div class="shell">
+
+      <nav class="nav">
+        <div class="brand">
+          Neural<span>Vault</span> AI
+        </div>
+
+        <div class="navlinks">
+
+          <button class="btn" onclick="toggleLang()">
+            ${t('lang')}
+          </button>
+
+          ${
+            token
+            ?
+            `
+              <button class="btn primary" onclick="dashboard()">
+                ${t('dash')}
+              </button>
+
+              <button class="btn" onclick="logout()">
+                ${t('logout')}
+              </button>
+            `
+            :
+            `
+              <button class="btn" onclick="login()">
+                ${t('login')}
+              </button>
+
+              <button class="btn primary" onclick="register()">
+                ${t('register')}
+              </button>
+            `
+          }
+
+        </div>
+      </nav>
+
+      ${body}
+
+      <footer class="footer">
+        <div class="container">
+          Terms · Risk Disclosure · Privacy · Fee Schedule ·
+          Crypto Payment Policy · Withdrawal Policy ·
+          Affiliate Terms · KYC/AML · Restricted Jurisdictions
+        </div>
+      </footer>
+
+    </div>
+  `;
+}
+
+function home(){
+
+  return shell(`
+
+    <main>
+
+      <section class="hero container">
+
+        <div class="eyebrow">
+          AI FINTECH · TRANSPARENT LEDGER
+        </div>
+
+        <h1>
+          ${
+            lang==='ar'
+            ?
+            'منصة مالية رقمية بواجهة احترافية ومحاسبة قابلة للتدقيق'
+            :
+            'Professional digital finance with auditable accounting'
+          }
+        </h1>
+
+        <p>
+          ${
+            lang==='ar'
+            ?
+            'إدارة حسابك واستثماراتك وحالات السحب والإيداع من لوحة واحدة. لا توجد عوائد مضمونة، والأداء قد يكون موجبًا أو سالبًا.'
+            :
+            'Manage your account, investments, deposits and withdrawals from one dashboard. No guaranteed returns; performance can be positive or negative.'
+          }
+        </p>
+
+        <div class="actions">
+
+          <button class="btn primary" onclick="register()">
+            ${t('register')}
+          </button>
+
+          <button
+            class="btn"
+            onclick="document.getElementById('plans').scrollIntoView()"
+          >
+            ${t('plans')}
+          </button>
+
+        </div>
+
+        <div
+          class="notice danger"
+          style="max-width:850px;margin:25px auto"
+        >
+          ${
+            lang==='ar'
+            ?
+            'هذه منصة تجريبية تعليمية. لا ترسل أموالًا حقيقية قبل إتمام مزود الدفع والتحقق والامتثال والمراجعة الأمنية.'
+            :
+            'Educational/demo environment. Do not send real funds until payment provider, compliance and security controls are production-ready.'
+          }
+        </div>
+
+      </section>
+
+      <section
+        id="plans"
+        class="section container"
+      >
+
+        <h2>${t('plans')}</h2>
+
+        <div class="grid">
+
+          ${
+            plans.map(p=>`
+
+              <article class="card">
+
+                <h3>${p[0]}</h3>
+
+                <div class="price">
+                  ${money(p[1])}
+                </div>
+
+                <p>
+                  ${p[2]} ${t('days')}
+                  <br>
+                  ${t('fee')}: ${(p[3]*100).toFixed(1)}%
+                </p>
+
+                <button
+                  class="btn primary"
+                  style="width:100%"
+                  onclick="${
+                    token
+                    ?
+                    `startInvest('${p[0]}')`
+                    :
+                    'register()'
+                  }"
+                >
+                  ${t('invest')}
+                </button>
+
+              </article>
+
+            `).join('')
+          }
+
+        </div>
+
+      </section>
+
+    </main>
+
+  `);
+}
+
+function dashShell(){
+
+  return shell(`
+
+    <div class="dashboard">
+
+      <aside class="side">
+
+        <button
+          class="btn primary"
+          onclick="dashboard()"
+        >
+          ${t('dash')}
+        </button>
+
+        <button
+          class="btn"
+          onclick="deposit()"
+        >
+          ${t('deposit')}
+        </button>
+
+        <button
+          class="btn"
+          onclick="investments()"
+        >
+          ${t('invest')}
+        </button>
+
+        <button
+          class="btn"
+          onclick="withdraw()"
+        >
+          ${t('withdraw')}
+        </button>
+
+        <button
+          class="btn"
+          onclick="support()"
+        >
+          ${t('support')}
+        </button>
+
+      </aside>
+
+      <main
+        class="main"
+        id="main"
+      ></main>
+
+    </div>
+
+  `);
+}
+
+function bal(type){
+
+  return Number(
+    (me?.accounts||[])
+      .find(a=>a.type===type)
+      ?.balance||0
+  );
+
+}
+
+function dashboard(){
+
+  if(!token){
+    return login();
+  }
+
+  document.getElementById('app').innerHTML=dashShell();
+
+  const e=document.getElementById('main');
+
+  e.innerHTML=`
+
+    <h1>${t('dash')}</h1>
+
+    <div class="stats">
+
+      <div class="card">
+        ${t('available')}
+        <div class="value">
+          ${money(bal('AVAILABLE'))}
+        </div>
+      </div>
+
+      <div class="card">
+        ${t('locked')}
+        <div class="value">
+          ${money(bal('LOCKED'))}
+        </div>
+      </div>
+
+      <div class="card">
+        ${t('accrued')}
+        <div class="value">
+          ${money(bal('ACCRUED_RETURN'))}
+        </div>
+      </div>
+
+      <div class="card">
+        ${t('affiliate')}
+        <div class="value">
+          ${money(bal('AFFILIATE'))}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="notice">
+      ${
+        lang==='ar'
+        ?
+        'الحالة المالية مصدرها الـBackend وقيد مزدوج غير قابل للتعديل المباشر.'
+        :
+        'Financial state is backend-authoritative with an auditable ledger.'
+      }
+    </div>
+
+    <h2>
+      ${t('transactions')}
+    </h2>
+
+    <div class="card">
+
+      <table class="table">
+
+        <tr>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Direction</th>
+          <th>Date</th>
+        </tr>
+
+        ${
+          (me?.ledger||[])
+          .map(x=>`
+
+            <tr>
+
+              <td>
+                ${esc(x.type)}
+              </td>
+
+              <td>
+                ${money(x.amount)}
+              </td>
+
+              <td>
+                ${esc(x.direction)}
+              </td>
+
+              <td>
+                ${new Date(x.createdAt).toLocaleString()}
+              </td>
+
+            </tr>
+
+          `)
+          .join('')
+        }
+
+      </table>
+
+    </div>
+
+  `;
+}
+
+function modal(x){
+
+  const d=document.createElement('div');
+
+  d.id='modal';
+
+  d.className='modal';
+
+  d.innerHTML=`
+
+    <div class="modalbox">
+
+      ${x}
+
+      <br>
+
+      <button
+        class="btn"
+        onclick="closeM()"
+      >
+        ${t('close')}
+      </button>
+
+    </div>
+
+  `;
+
+  document.body.appendChild(d);
+}
+
+function closeM(){
+  document.getElementById('modal')?.remove();
+}
+
+function login(){
+
+  modal(`
+
+    <h2>
+      ${t('login')}
+    </h2>
+
+    <input
+      id="em"
+      class="input"
+      placeholder="Email"
+    >
+
+    <input
+      id="pw"
+      class="input"
+      type="password"
+      placeholder="Password"
+    >
+
+    <button
+      class="btn primary"
+      onclick="doLogin()"
+    >
+      ${t('login')}
+    </button>
+
+  `);
+
+}
+
+function register(){
+
+  modal(`
+
+    <h2>
+      ${t('register')}
+    </h2>
+
+    <input
+      id="em"
+      class="input"
+      placeholder="Email"
+    >
+
+    <input
+      id="pw"
+      class="input"
+      type="password"
+      placeholder="Password (8+)"
+    >
+
+    <div class="notice">
+      Terms, Risk Disclosure, Crypto Payment Policy,
+      KYC/AML and jurisdiction restrictions apply.
+    </div>
+
+    <button
+      class="btn primary"
+      onclick="doRegister()"
+    >
+      ${t('register')}
+    </button>
+
+  `);
+
+}
+
+async function doLogin(){
+
+  try{
+
+    const d=await api(
+      '/auth/login',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          email:em.value,
+          password:pw.value
+        })
+      }
+    );
+
+    token=d.accessToken;
+
+    localStorage.token=token;
+
+    closeM();
+
+    await refresh();
+
+    render();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+async function doRegister(){
+
+  try{
+
+    const d=await api(
+      '/auth/register',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          email:em.value,
+          password:pw.value
+        })
+      }
+    );
+
+    token=d.accessToken;
+
+    localStorage.token=token;
+
+    closeM();
+
+    await refresh();
+
+    render();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+function logout(){
+
+  token='';
+
+  localStorage.removeItem('token');
+
+  me=null;
+
+  render();
+
+}
+
+function toggleLang(){
+
+  lang=lang==='ar'?'en':'ar';
+
+  saveLang();
+
+  render();
+
+}
+
+async function deposit(){
+
+  modal(`
+
+    <h2>
+      ${t('deposit')}
+    </h2>
+
+    <input
+      id="amount"
+      class="input"
+      type="number"
+      min="1"
+      placeholder="Amount USD"
+    >
+
+    <select
+      id="currency"
+      class="input"
+    >
+      <option>USD</option>
+      <option>USDT</option>
+      <option>USDC</option>
+    </select>
+
+    <div class="notice danger">
+      ${
+        lang==='ar'
+        ?
+        'النسخة الحالية تستخدم تأكيدًا تجريبيًا. الإنتاج يحتاج webhook موثّق من مزود الدفع.'
+        :
+        'Current build supports demo confirmation; production needs a verified provider webhook.'
+      }
+    </div>
+
+    <button
+      class="btn primary"
+      onclick="doDeposit()"
+    >
+      ${t('deposit')}
+    </button>
+
+  `);
+
+}
+
+async function doDeposit(){
+
+  try{
+
+    const d=await api(
+      '/finance/deposits',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          amount:Number(amount.value),
+          currency:currency.value,
+          provider:'demo'
+        })
+      }
+    );
+
+    await api(
+      '/finance/deposits/'+d.id+'/confirm',
+      {
+        method:'POST'
+      }
+    );
+
+    closeM();
+
+    await refresh();
+
+    dashboard();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+async function startInvest(name){
+
+  try{
+
+    await api(
+      '/finance/investments',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          name
+        })
+      }
+    );
+
+    await refresh();
+
+    dashboard();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+function investments(){
+
+  document.getElementById('main').innerHTML=`
+
+    <h1>
+      ${t('invest')}
+    </h1>
+
+    <div class="grid">
+
+      ${
+        plans.map(p=>`
+
+          <article class="card">
+
+            <h3>
+              ${p[0]}
+            </h3>
+
+            <div class="price">
+              ${money(p[1])}
+            </div>
+
+            <p>
+              ${p[2]} ${t('days')}
+              ·
+              ${(p[3]*100).toFixed(1)}%
+            </p>
+
+            <button
+              class="btn primary"
+              onclick="startInvest('${p[0]}')"
+            >
+              ${t('invest')}
+            </button>
+
+          </article>
+
+        `).join('')
+      }
+
+    </div>
+
+    <div class="notice">
+      Settlement can only occur after the lock timestamp
+      and is processed by the backend.
+    </div>
+
+  `;
+
+}
+
+async function withdraw(){
+
+  modal(`
+
+    <h2>
+      ${t('withdraw')}
+    </h2>
+
+    <input
+      id="wa"
+      class="input"
+      type="number"
+      min="1"
+      placeholder="Amount USD"
+    >
+
+    <input
+      id="addr"
+      class="input"
+      placeholder="Wallet address"
+    >
+
+    <select
+      id="network"
+      class="input"
+    >
+      <option>USDT-TRC20</option>
+      <option>USDT-ERC20</option>
+    </select>
+
+    <div class="notice danger">
+      Only available balance can be requested.
+      Production requires compliance review,
+      reservation, broadcast and reconciliation.
+    </div>
+
+    <button
+      class="btn primary"
+      onclick="doWithdraw()"
+    >
+      ${t('withdraw')}
+    </button>
+
+  `);
+
+}
+
+async function doWithdraw(){
+
+  try{
+
+    await api(
+      '/finance/withdrawals',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          amount:Number(wa.value),
+          address:addr.value,
+          network:network.value
+        })
+      }
+    );
+
+    closeM();
+
+    await refresh();
+
+    dashboard();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+async function support(){
+
+  document.getElementById('main').innerHTML=`
+
+    <h1>
+      ${t('support')}
+    </h1>
+
+    <div class="grid">
+
+      <div class="card">
+
+        <h3>
+          AI Support
+        </h3>
+
+        <p class="muted">
+          Common questions can be handled here;
+          payment failures, withdrawals and security
+          issues can be escalated to human support.
+        </p>
+
+      </div>
+
+      <div class="card">
+
+        <h3>
+          Submit Ticket
+        </h3>
+
+        <input
+          id="subj"
+          class="input"
+          placeholder="Subject"
+        >
+
+        <select
+          id="cat"
+          class="input"
+        >
+          <option>Deposit Issue</option>
+          <option>Cryptocurrency Payment</option>
+          <option>Investment</option>
+          <option>Locked Balance</option>
+          <option>Withdrawal</option>
+          <option>KYC</option>
+          <option>Affiliate Program</option>
+          <option>Technical Issue</option>
+        </select>
+
+        <textarea
+          id="msg"
+          class="input"
+          rows="5"
+          placeholder="Describe your issue"
+        ></textarea>
+
+        <button
+          class="btn primary"
+          onclick="sendTicket()"
+        >
+          ${t('submit')}
+        </button>
+
+      </div>
+
+      <div class="card">
+
+        <h3>
+          My Tickets
+        </h3>
+
+        ${
+          (me?.tickets||[])
+          .map(x=>`
+
+            <p>
+              <b>
+                ${esc(x.subject)}
+              </b>
+              —
+              ${esc(x.status)}
+            </p>
+
+          `)
+          .join('')
+          ||
+          '<p>No tickets.</p>'
+        }
+
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+async function sendTicket(){
+
+  try{
+
+    await api(
+      '/finance/support',
+      {
+        method:'POST',
+        body:JSON.stringify({
+          subject:subj.value,
+          category:cat.value,
+          message:msg.value
+        })
+      }
+    );
+
+    await refresh();
+
+    support();
+
+  }catch(e){
+
+    alert(e.message);
+
+  }
+
+}
+
+function render(){
+
+  document.getElementById('app').innerHTML=
+    token ? dashShell() : home();
+
+  if(token){
+
+    refresh().then(()=>{
+
+      if(token){
+        dashboard();
+      }else{
+        render();
+      }
+
+    });
+
+  }
+
+}
+
 render();
